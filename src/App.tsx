@@ -68,10 +68,6 @@ function App() {
     createEl.remove();
   };
 
-  const getHeight = () => {
-    return window.innerHeight - headerRef.current?.offsetHeight + 'px';
-  };
-  getHeight();
   return (
     <>
       <input
@@ -87,7 +83,7 @@ function App() {
 
       <Box
         sx={{
-          minHeight: getHeight(),
+          minHeight: '80vh',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
