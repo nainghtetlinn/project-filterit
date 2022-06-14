@@ -1,16 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { Container, Box, Button, Stack } from '@mui/material';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
+import { useRef, useState } from 'react';
+import { Stack, Grid, Box } from '@mui/material';
 
 import Header from './components/Header';
+import { AdjustSlider, Canvas, MainBtns, AdjustModes } from './components';
+
+const originalFilter = [
+  { label: 'brightness', value: 50, minVal: 0, maxVal: 100 },
+  { label: 'contrast', value: 50, minVal: 0, maxVal: 100 },
+  { label: 'grayscale', value: 0, minVal: 0, maxVal: 100 },
+  { label: 'hue', value: 0, minVal: 0, maxVal: 360 },
+  { label: 'invert', value: 0, minVal: 0, maxVal: 100 },
+  { label: 'opacity', value: 100, minVal: 0, maxVal: 100 },
+  { label: 'saturation', value: 100, minVal: 0, maxVal: 200 },
+  { label: 'sepia', value: 0, minVal: 0, maxVal: 100 },
+];
 
 function App() {
-  const canvasRef = useRef<HTMLCanvasElement | any>(null);
+  const headerRef = useRef<HTMLDivElement | any>(null);
+  const [file, setFile] = useState<File | null | any>(null);
+  const [fileUrl, setFileUrl] = useState<string | any>('');
 
-  const [file, setFile] = useState<File | null>(null);
+  const [activeEffect, setActiveEffect] = useState<number>(0);
+  const [appliedFilter, setAppliedFilter] = useState([
+    { label: 'brightness', value: 50, minVal: 0, maxVal: 100 },
+    { label: 'contrast', value: 50, minVal: 0, maxVal: 100 },
+    { label: 'grayscale', value: 0, minVal: 0, maxVal: 100 },
+    { label: 'hue', value: 0, minVal: 0, maxVal: 360 },
+    { label: 'invert', value: 0, minVal: 0, maxVal: 100 },
+    { label: 'opacity', value: 100, minVal: 0, maxVal: 100 },
+    { label: 'saturation', value: 100, minVal: 0, maxVal: 200 },
+    { label: 'sepia', value: 0, minVal: 0, maxVal: 100 },
+  ]);
 
-  const [width, setWidth] = useState<number>(300);
-  const [height, setHeight] = useState<number>(300);
+  const getActiveAdjust = (i: number) => {
+    return appliedFilter[i];
+  };
 
   const handleUpload: React.ChangeEventHandler<HTMLInputElement | any> = e => {
     const f = e.currentTarget.files[0];
@@ -21,73 +45,87 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    if (file) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result as string;
-        img.onload = () => {
-          if (img.width > img.height) {
-            setWidth(300);
-            setHeight(img.height * (300 / img.width));
-          } else {
-            setHeight(300);
-            setWidth(img.width * (300 / img.height));
-          }
-          let scale = Math.min(width / img.width, height, img.height);
+  const handleChange = (event: Event, newValue: number | number[]) => {
+    const newAppliedFilter = appliedFilter.map((f, i) => {
+      if (i === activeEffect) {
+        f.value = newValue as number;
+      }
+      return f;
+    });
+    setAppliedFilter(newAppliedFilter);
+  };
 
-          setTimeout(() => {
-            ctx.drawImage(img, 0, 0, img.width * scale, img.height * scale);
-          }, 500);
-        };
-      };
-      reader.readAsDataURL(file);
-    }
-  }, [file, height, width]);
+  const handleReset = () => {
+    setAppliedFilter(originalFilter);
+  };
 
+  const handleDownload = () => {
+    if (!file && !fileUrl) return;
+    const createEl = document.createElement('a');
+    createEl.href = fileUrl;
+    createEl.download = 'filtered_' + file.name;
+    createEl.click();
+    createEl.remove();
+  };
+
+  const getHeight = () => {
+    return window.innerHeight - headerRef.current?.offsetHeight + 'px';
+  };
+  getHeight();
   return (
     <>
-      <Header />
-      <Container maxWidth='sm'>
-        <Stack direction='row' justifyContent='center' sx={{ mt: 4 }}>
-          <Box
-            sx={{
-              maxWidth: '300px',
-              maxHeight: '300px',
-              minHeight: '300px',
-              minWidth: '300px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: 'red',
-            }}
-          >
-            <canvas
-              ref={canvasRef}
-              height={height}
-              width={width}
-              id='canvas'
-            ></canvas>
-          </Box>
-        </Stack>
-        <Box sx={{ p: 2 }}>
-          <label htmlFor='upload-img'>
-            <input
-              accept='image/*'
-              type='file'
-              name='image'
-              id='upload-img'
-              onChange={handleUpload}
+      <input
+        accept='image/*'
+        id='upload-img'
+        type='file'
+        onChange={handleUpload}
+        hidden
+      />
+      <div ref={headerRef}>
+        <Header />
+      </div>
+
+      <Box
+        sx={{
+          minHeight: getHeight(),
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        <Grid container>
+          <Grid item xs={12} md={5}>
+            <Canvas
+              file={file}
+              filtered={appliedFilter}
+              returnData={setFileUrl}
             />
-            <Button variant='contained' startIcon={<FileUploadIcon />}>
-              Upload
-            </Button>
-          </label>
-        </Box>
-      </Container>
+            <MainBtns reset={handleReset} download={handleDownload} />
+          </Grid>
+          <Grid item xs={12} md={7}>
+            <Stack
+              direction='column'
+              alignItems='center'
+              justifyContent='center'
+              sx={{ height: '100%' }}
+            >
+              <AdjustSlider
+                filter={getActiveAdjust(activeEffect)}
+                onChange={handleChange}
+              />
+
+              <AdjustModes
+                modes={appliedFilter.map(f => f.label)}
+                activeEffect={activeEffect}
+                onChange={(event: React.SyntheticEvent, newValue: number) => {
+                  setActiveEffect(newValue);
+                }}
+              />
+            </Stack>
+          </Grid>
+        </Grid>
+      </Box>
     </>
   );
 }
